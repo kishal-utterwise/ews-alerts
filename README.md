@@ -1,2 +1,2 @@
-# ews-alerts v.1
+# ews-alerts v.1.1
 
