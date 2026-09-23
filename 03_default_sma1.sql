@@ -1,9 +1,7 @@
 BEGIN;
 
-INSERT INTO "SMA_LOG" (id, "account_Id", "snapShotDate", "defaultDate", "overdueAmount", "createdAt")
-SELECT 201, 31, (date_trunc('month', CURRENT_DATE) - INTERVAL '1 month' - INTERVAL '1 day')::date,
-       (CURRENT_DATE - INTERVAL '45 days')::date, 5000, now()
-ON CONFLICT DO NOTHING;
+-- No SMA_LOG insert here - the shared snapshot (account 31, id 201) that both this rule and
+-- Quick SMA read is seeded once in 00_foundation.sql, so the same account satisfies both.
 
 INSERT INTO "FRM_RULE" (id, name, code, description, "ruleType", "startDate", "endDate", "jsonString", status,
                         "alertGenerationToClassificationTat", "alertActions", "ruleSeverity", "alertHierarchy_Id",

@@ -23,9 +23,14 @@ DELETE FROM "FRM_RULE" WHERE id = $ruleId;
 # STOCK/SECURITY_DETAILS ids 31-33 are seeded by BOTH Inventory and Receivables (shared ON CONFLICT
 # DO NOTHING fixture) - undoing one while the other's alerts still reference them is a known gap,
 # flagged in the confirmation dialog rather than silently left broken.
+# SMA_LOG id 201 (account 31) is shared by Default In SMA1 and Quick SMA the same way, but its
+# insert now lives only in Foundation (item 0), so only undoing Foundation removes it - undoing
+# item 3 or 4 alone leaves it in place for the other to keep using.
 $items = @(
     @{ Label = "0. Foundation setup (account/customer/hierarchy/user)"; File = "00_foundation.sql"; RuleId = $null
        UndoSql = @'
+DELETE FROM "FRM_ALERT_GENERATED_FOR_DATA" WHERE "smaLogs_Id" = 201;
+DELETE FROM "SMA_LOG" WHERE id = 201;
 DELETE FROM "ACCOUNT_CUSTOMER" WHERE id = 31;
 DELETE FROM "CUSTOMER_DETAILS" WHERE id = 31;
 DELETE FROM "ACCOUNT" WHERE id = 31;
@@ -48,20 +53,12 @@ DELETE FROM "STOCK" WHERE id IN (31,32,33);
 DELETE FROM "SECURITY_DETAILS" WHERE id = 31;
 '@ },
     @{ Label = "3. Default In SMA1";                                    File = "03_default_sma1.sql"; RuleId = 503
-       UndoSql = (UndoSql-ForRule 503) + @'
-
-DELETE FROM "FRM_ALERT_GENERATED_FOR_DATA" WHERE "smaLogs_Id" = 201;
-DELETE FROM "SMA_LOG" WHERE id = 201;
-'@ },
+       # No SMA_LOG delete here - id 201 is now owned by Foundation (item 0), shared with Quick SMA.
+       UndoSql = UndoSql-ForRule 503 },
     @{ Label = "4. Quick SMA";                                          File = "04_quick_sma.sql"; RuleId = 504
-       UndoSql = (UndoSql-ForRule 504) + @'
-
-DELETE FROM "FRM_ALERT_GENERATED_FOR_DATA" WHERE "smaLogs_Id" = 202 OR "account_Id" = 32;
-DELETE FROM "SMA_LOG" WHERE id = 202;
-DELETE FROM "ACCOUNT_CUSTOMER" WHERE id = 32;
-DELETE FROM "CUSTOMER_DETAILS" WHERE id = 32;
-DELETE FROM "ACCOUNT" WHERE id = 32;
-'@ },
+       # No SMA_LOG/ACCOUNT delete here - reuses Foundation's shared account 31 / SMA_LOG 201, same
+       # as Default In SMA1; nothing of its own left to clean up beyond the rule/alerts/evidence.
+       UndoSql = UndoSql-ForRule 504 },
     @{ Label = "5. Credit Summation vs Account Limit";                  File = "05_credit_summation.sql"; RuleId = 505
        UndoSql = (UndoSql-ForRule 505) + @'
 

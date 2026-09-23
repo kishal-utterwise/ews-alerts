@@ -1,29 +1,10 @@
 BEGIN;
 
--- Quick SMA needs its own account (not 31, which Default In SMA1 already owns) and its own
--- recent snapshot:
---  - QuickSMAInLastNMonths() groups DefaultInPaymentForSMAInLastNTimes-style logic per account_Id
---    and only looks at the LATEST snapShotDate row for that account - sharing account 31 meant
---    only one of the two rules' SMA_LOG rows ever actually got evaluated.
---  - QuickSMAInLastNMonths() also restricts snapShotDate to ONLY the current evaluation month
---    (1st to last day) - the old snapShotDate (last day of the PREVIOUS month) never matched.
---  - It additionally requires ACCOUNT.dateOfOpening within the LastNMonths window (a "quickly"
---    opened account), hence the new account below opened 10 days ago.
-INSERT INTO "ACCOUNT" ("id","generalLedger_Id","accountCode","accountNumber","branch_Id","currentStatus","dateOfOpening","actualBalance","shadowBalance")
-VALUES (32, 71, 'AC32', 'ACC32', 201, 1, (CURRENT_DATE - INTERVAL '10 days')::date, 0, 0)
-ON CONFLICT DO NOTHING;
-
-INSERT INTO "CUSTOMER_DETAILS" ("id","isIndividual","ucic","rekycDueOn","branchId","status")
-VALUES (32, true, 'UCIC32', now() + interval '1 year', 201, 'ACTIVE')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO "ACCOUNT_CUSTOMER" ("id","account_Id","customer_Id","customerAccountRelationshipType")
-VALUES (32, 32, 32, 0)
-ON CONFLICT DO NOTHING;
-
-INSERT INTO "SMA_LOG" (id, "account_Id", "snapShotDate", "defaultDate", "overdueAmount", "createdAt")
-SELECT 202, 32, CURRENT_DATE, (CURRENT_DATE - INTERVAL '45 days')::date, 5000, now()
-ON CONFLICT DO NOTHING;
+-- No SMA_LOG/ACCOUNT insert here - reuses the shared snapshot (account 31, id 201) seeded once in
+-- 00_foundation.sql, same row "Default In SMA1" reads, so one account satisfies both conditions
+-- (needed for the app's combined AND/OR rules, not just each condition tested standalone).
+-- That row already lands inside QuickSMAInLastNMonths()'s current-month-only window and account
+-- 31's dateOfOpening (foundation: 1 month ago) already satisfies the "recently opened" check.
 
 INSERT INTO "FRM_RULE" (id, name, code, description, "ruleType", "startDate", "endDate", "jsonString", status,
                         "alertGenerationToClassificationTat", "alertActions", "ruleSeverity", "alertHierarchy_Id",
